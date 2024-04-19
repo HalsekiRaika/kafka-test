@@ -1,0 +1,7 @@
+version: '3'
+services:
+  kafka:
+    build: ./.docker
+    restart: "always"
+    ports:
+      - "9093:9093"
