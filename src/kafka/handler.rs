@@ -1,7 +1,7 @@
 use error_stack::{Report, ResultExt};
 use futures::StreamExt;
 use rdkafka::consumer::{CommitMode, Consumer};
-use rdkafka::Message;
+use rdkafka::{Message};
 use rdkafka::message::BorrowedMessage;
 use serde::de::DeserializeOwned;
 use tracing::Instrument;
@@ -31,6 +31,7 @@ impl SubscribeHandler {
         tokio::spawn(async move {
             tracing::trace!("start.");
             while let Some(payload) = subscriber.as_ref().stream().next().await {
+                
                 let payload = match payload {
                     Ok(payload) => payload,
                     Err(e) => {
