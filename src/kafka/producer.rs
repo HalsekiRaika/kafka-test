@@ -1,15 +1,18 @@
 use error_stack::{Report, ResultExt};
+use rdkafka::client::DefaultClientContext;
 use rdkafka::producer::{FutureProducer, FutureRecord};
 use rdkafka::util::Timeout;
 use serde::Serialize;
 use uuid::Uuid;
 use crate::error::Error;
 use crate::kafka::KafkaConfig;
+use crate::runtime::TokioRuntime;
 
-pub struct EventPublisher(FutureProducer);
+pub struct EventPublisher(FutureProducer<DefaultClientContext, TokioRuntime>);
 
 impl EventPublisher {
-    pub fn new(config: &mut KafkaConfig) -> Result<Self, Report<Error>> {
+    #[tracing::instrument(skip(config), name = "EventPublisher Setup")]
+    pub async fn new(config: &mut KafkaConfig) -> Result<Self, Report<Error>> {
         config.set("message.timeout.ms", "5000");
         Ok(Self(
             config.create().change_context_lazy(|| Error::Kafka)?,

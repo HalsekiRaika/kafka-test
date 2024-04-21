@@ -1,30 +1,41 @@
+use std::sync::Arc;
 use std::time::Duration;
 use error_stack::{Report, ResultExt};
 use rdkafka::ClientContext;
+use rdkafka::config::FromClientConfigAndContext;
 use rdkafka::consumer::{ConsumerContext, Rebalance, StreamConsumer};
 use rdkafka::util::Timeout;
 use crate::error::Error;
 use crate::kafka::KafkaConfig;
+use crate::runtime::TokioRuntime;
 
-pub struct EventSubscriber(StreamConsumer<SubscribeContext>);
+pub struct EventSubscriber(Arc<StreamConsumer<SubscribeContext, TokioRuntime>>);
 
 impl EventSubscriber {
-    pub fn new(config: &mut KafkaConfig) -> Result<Self, Report<Error>> {
+    #[tracing::instrument(skip(config), name = "EventSubscriber Setup")]
+    pub async fn new(config: &mut KafkaConfig) -> Result<Self, Report<Error>> {
         config.set("group.id", "my-group-1");
         config.set("enable.partition.eof", "false");
-        config.set("session.timeout.ms", "550");
-        config.set("max.poll.interval.ms", "600");
+        config.set("session.timeout.ms", "5500");
+        config.set("max.poll.interval.ms", "6000");
         config.set("enable.auto.commit", "false");
         config.set("enable.auto.offset.store", "false");
-        config.set("auto.offset.reset", "latest");
         config.set("debug", "consumer");
-        Ok(Self(config.create_with_context(SubscribeContext).change_context_lazy(|| Error::Kafka)?))
+        let consumer = StreamConsumer::from_config_and_context(config, SubscribeContext)
+            .change_context_lazy(|| Error::Kafka)?;
+        Ok(Self(Arc::new(consumer)))
     }
 }
 
-impl AsRef<StreamConsumer<SubscribeContext>> for EventSubscriber {
-    fn as_ref(&self) -> &StreamConsumer<SubscribeContext> {
-        &self.0
+impl Clone for EventSubscriber {
+    fn clone(&self) -> Self {
+        Self(Arc::clone(&self.0))
+    }
+}
+
+impl AsRef<StreamConsumer<SubscribeContext, TokioRuntime>> for EventSubscriber {
+    fn as_ref(&self) -> &StreamConsumer<SubscribeContext, TokioRuntime> {
+        &self.0.as_ref()
     }
 }
 

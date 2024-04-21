@@ -1,8 +1,9 @@
 use error_stack::{Report, ResultExt};
+
 use crate::error::Error;
 use crate::kafka::{EventPublisher, EventSubscriber, KafkaConfig};
 
-pub fn setup_kafka() -> Result<(EventPublisher, EventSubscriber), Report<Error>> {
+pub async fn setup_kafka() -> Result<(EventPublisher, EventSubscriber), Report<Error>> {
     let mut publisher = KafkaConfig::new();
     publisher.set(
         "bootstrap.servers",
@@ -13,8 +14,8 @@ pub fn setup_kafka() -> Result<(EventPublisher, EventSubscriber), Report<Error>>
 
     let mut subscriber = publisher.clone();
 
-    let publisher = EventPublisher::new(&mut publisher)?;
-    let subscriber = EventSubscriber::new(&mut subscriber)?;
+    let publisher = EventPublisher::new(&mut publisher).await?;
+    let subscriber = EventSubscriber::new(&mut subscriber).await?;
 
     Ok((publisher, subscriber))
 }

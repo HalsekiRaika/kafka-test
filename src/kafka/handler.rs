@@ -1,7 +1,7 @@
 use error_stack::{Report, ResultExt};
 use futures::StreamExt;
 use rdkafka::consumer::{CommitMode, Consumer};
-use rdkafka::{Message};
+use rdkafka::{Message, Offset, TopicPartitionList};
 use rdkafka::message::BorrowedMessage;
 use serde::de::DeserializeOwned;
 use tracing::Instrument;
@@ -17,20 +17,28 @@ impl<E> Subscriber<E> {
     }
 }
 
-pub struct SubscribeHandler;
+pub struct SubscribeHandler(EventSubscriber);
 
 impl SubscribeHandler {
-    pub async fn subscribe<E: DeserializeOwned + Send + 'static>(topic: impl AsRef<str>, subscriber: EventSubscriber) -> Result<Subscriber<E>, Report<Error>> {
+    pub fn new(subscriber: EventSubscriber) -> Self {
+        Self(subscriber)
+    }
+    
+    pub async fn subscribe<E: DeserializeOwned + Send + 'static>(self, topic: impl AsRef<str>) -> Result<Subscriber<E>, Report<Error>> {
         let (sender, receiver) = tokio::sync::mpsc::unbounded_channel();
-
-        subscriber.as_ref().subscribe(&[topic.as_ref()])
+        
+        self.0.as_ref().commit_consumer_state(CommitMode::Async)
             .change_context_lazy(|| Error::Kafka)?;
-
+        
+        self.0.as_ref().subscribe(&[topic.as_ref()])
+            .change_context_lazy(|| Error::Kafka)?;
+        
         tracing::trace!("subscribed topic: {}.", topic.as_ref());
 
         tokio::spawn(async move {
             tracing::trace!("start.");
-            while let Some(payload) = subscriber.as_ref().stream().next().await {
+            let subscriber = self.0.as_ref();
+            while let Some(payload) = subscriber.stream().next().await {
                 
                 let payload = match payload {
                     Ok(payload) => payload,
@@ -55,7 +63,7 @@ impl SubscribeHandler {
                     break;
                 }
 
-                if let Err(e) = subscriber.as_ref().commit_message(&payload, CommitMode::Async) {
+                if let Err(e) = subscriber.commit_message(&payload, CommitMode::Sync) {
                     tracing::error!("{}", e);
                     continue;
                 }
