@@ -13,7 +13,7 @@ use crate::kafka::SubscribeHandler;
 use crate::setup::setup_kafka;
 
 
-#[tokio::main(flavor = "multi_thread", worker_threads = 8)]
+#[tokio::main(flavor = "multi_thread", worker_threads = 2)]
 async fn main() -> Result<(), Report<Error>> {
     tracing_subscriber::registry()
         .with(tracing_subscriber::fmt::layer()

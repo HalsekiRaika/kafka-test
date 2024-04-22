@@ -1,8 +1,6 @@
 use error_stack::{Report, ResultExt};
 use futures::StreamExt;
-use rdkafka::consumer::{CommitMode, Consumer};
-use rdkafka::{Message, Offset, TopicPartitionList};
-use rdkafka::message::BorrowedMessage;
+use rdkafka::{consumer::{CommitMode, Consumer}, Message, message::BorrowedMessage};
 use serde::de::DeserializeOwned;
 use tracing::Instrument;
 use crate::error::Error;
